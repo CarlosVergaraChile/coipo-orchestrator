@@ -1,0 +1,7 @@
+* @CarlosVergaraChile
+
+# Specific ownership
+/src/orchestration/* @CarlosVergaraChile
+/src/oauth/* @CarlosVergaraChile
+/src/integrations/* @CarlosVergaraChile
+/tests/* @CarlosVergaraChile
