@@ -1,0 +1,49 @@
+name: Orquesta Gemini - prueba sintetica
+on:
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Numero del issue sintetico
+        required: true
+        type: number
+permissions:
+  issues: write
+concurrency:
+  group: orquesta-gemini-${{ inputs.issue }}
+  cancel-in-progress: false
+jobs:
+  roundtrip:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      ISSUE: ${{ inputs.issue }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Validar issue y comprobar respuesta previa
+        id: preflight
+        run: |
+          set -euo pipefail
+          [[ "$ISSUE" =~ ^[1-9][0-9]*$ ]]
+          api="repos/$GITHUB_REPOSITORY/issues/$ISSUE"
+          gh api "$api" --jq 'select(.pull_request == null and (.title | startswith("[QA Orquesta]"))) | .number' | grep -Fxq "$ISSUE"
+          done=$(gh api "$api/comments" --paginate --jq '.[] | select(.user.login == "github-actions[bot]") | .body | select(startswith("<!-- orquesta-gemini-qa-v1 -->"))' )
+          if [[ -z "$done" ]]; then
+            echo 'send=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Enviar caso sintetico y publicar resultado
+        if: steps.preflight.outputs.send == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$GEMINI_API_KEY"
+          curl --fail --silent --show-error --max-time 45 \
+            'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent' \
+            -H "x-goog-api-key: $GEMINI_API_KEY" -H 'Content-Type: application/json' \
+            --data '{"contents":[{"parts":[{"text":"Caso sintético. Un equipo completó 8 de 10 tareas. Informa el porcentaje en una oración en español."}]}],"generationConfig":{"maxOutputTokens":256,"thinkingConfig":{"thinkingBudget":0}}}' > "$RUNNER_TEMP/orquesta.json"
+          {
+            printf '<!-- orquesta-gemini-qa-v1 -->\n'
+            printf 'Prueba sintética de Gemini · [ejecución](%s/%s/actions/runs/%s)\n\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+            jq -er '[.candidates[0].content.parts[] | .text // empty] | join("\n") | select(length > 0)' "$RUNNER_TEMP/orquesta.json"
+          } > "$RUNNER_TEMP/orquesta-response.md"
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/orquesta-response.md"
