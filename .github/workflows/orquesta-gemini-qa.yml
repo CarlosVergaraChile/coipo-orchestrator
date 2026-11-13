@@ -37,14 +37,16 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$GEMINI_API_KEY"
-          models=$(curl --fail --silent --show-error --retry 3 --retry-delay 3 --retry-max-time 70 --max-time 30 \
+          echo 'Consultando modelos disponibles'
+          models=$(curl --fail --silent --show-error --retry 1 --retry-delay 3 --retry-max-time 70 --max-time 30 \
             'https://generativelanguage.googleapis.com/v1beta/models?pageSize=100' \
             -H "x-goog-api-key: $GEMINI_API_KEY")
-          model=$(jq -er '[.models[] | select(.supportedGenerationMethods | index("generateContent")) | .name | select(test("^models/gemini-[0-9.]+-flash(-lite)?$"))] | sort | last // error("No hay un modelo Gemini Flash disponible para esta clave")' <<< "$models")
-          curl --fail --silent --show-error --retry 3 --retry-delay 3 --retry-max-time 70 --max-time 45 \
+          model=$(jq -er '[.models[] | select(.supportedGenerationMethods | index("generateContent")) | .name | select(test("^models/gemini-[0-9.]+-flash(-lite)?$"))] | sort_by([endswith("-lite"), .]) | last // error("No hay un modelo Gemini Flash disponible para esta clave")' <<< "$models")
+          echo "Solicitando respuesta a $model"
+          curl --fail --silent --show-error --retry 1 --retry-delay 3 --retry-max-time 70 --max-time 25 \
             "https://generativelanguage.googleapis.com/v1beta/${model}:generateContent" \
             -H "x-goog-api-key: $GEMINI_API_KEY" -H 'Content-Type: application/json' \
-            --data '{"contents":[{"parts":[{"text":"Caso sintético. Un equipo completó 8 de 10 tareas. Informa el porcentaje en una oración en español."}]}],"generationConfig":{"maxOutputTokens":1024}}' > "$RUNNER_TEMP/orquesta.json"
+            --data '{"contents":[{"parts":[{"text":"Caso sintético. Un equipo completó 8 de 10 tareas. Informa el porcentaje en una oración en español."}]}],"generationConfig":{"maxOutputTokens":512}}' > "$RUNNER_TEMP/orquesta.json"
           {
             printf '<!-- orquesta-gemini-qa-v1 -->\n'
             printf 'Prueba sintética de Gemini · [ejecución](%s/%s/actions/runs/%s)\n\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
