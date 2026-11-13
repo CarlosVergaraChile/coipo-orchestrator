@@ -37,11 +37,11 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$GEMINI_API_KEY"
-          models=$(curl --fail --silent --show-error --max-time 30 \
+          models=$(curl --fail --silent --show-error --retry 3 --retry-delay 3 --retry-max-time 70 --max-time 30 \
             'https://generativelanguage.googleapis.com/v1beta/models?pageSize=100' \
             -H "x-goog-api-key: $GEMINI_API_KEY")
           model=$(jq -er '[.models[] | select(.supportedGenerationMethods | index("generateContent")) | .name | select(test("^models/gemini-[0-9.]+-flash(-lite)?$"))] | sort | last // error("No hay un modelo Gemini Flash disponible para esta clave")' <<< "$models")
-          curl --fail --silent --show-error --max-time 45 \
+          curl --fail --silent --show-error --retry 3 --retry-delay 3 --retry-max-time 70 --max-time 45 \
             "https://generativelanguage.googleapis.com/v1beta/${model}:generateContent" \
             -H "x-goog-api-key: $GEMINI_API_KEY" -H 'Content-Type: application/json' \
             --data '{"contents":[{"parts":[{"text":"Caso sintético. Un equipo completó 8 de 10 tareas. Informa el porcentaje en una oración en español."}]}],"generationConfig":{"maxOutputTokens":1024}}' > "$RUNNER_TEMP/orquesta.json"
