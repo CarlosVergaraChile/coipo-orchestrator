@@ -1,0 +1,14 @@
+const assert = require('node:assert/strict');
+const workflow = require('./radar-hys-prueba.json');
+const [trigger, request, parse, task] = workflow.nodes;
+const run = (node, json) => new Function('$input', node.parameters.jsCode)({first: () => ({json})});
+const pdf = 'https://www.sercotec.cl/wp-content/uploads/2026/06/Bases-de-Convocatoria_Crece-Multisectorial-2026_Provincia-de-Iquique_Region-de-Tarapaca.pdf';
+const page = (minimum, link = pdf) => `<p>ventas netas demostrables anuales mayores o iguales a ${minimum} UF e inferiores o iguales a 25.000 UF</p><a href="${link}">Bases</a>`;
+const result = html => run(task, run(parse, {html})[0].json);
+assert.equal(workflow.active, false);
+assert.equal(workflow.connections[trigger.name].main[0][0].node, request.name);
+assert.deepEqual(result(page(200)), []);
+assert.match(result(page(300))[0].json.body, /Carpeta tributaria/);
+assert.match(result(page(200, pdf.replace('.pdf', '-v2.pdf')))[0].json.body, /Bases y checklist/);
+assert.throws(() => result('<p>Ficha sin datos</p>'));
+console.log('6 comprobaciones superadas');
