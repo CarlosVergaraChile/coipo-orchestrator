@@ -1,0 +1,70 @@
+{
+  "name": "Radar H&S · preparar revisión GitHub",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "11a03122-0311-4330-a501-0889939c0011",
+      "name": "Ejecutar prueba",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const pendientes = [];\nreturn [{json:{pendientes}}];"
+      },
+      "id": "11a03122-0311-4330-a501-0889939c0012",
+      "name": "Entrada del radar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.first().json.pendientes;\nif (!Array.isArray(rows)) throw new Error('Se requiere el arreglo pendientes del radar');\nconst source = 'https://www.sercotec.cl/convocatoria/crece-multisectorial-provincia-de-iquique-region-de-tarapaca-2026/';\nfor (const row of rows) {\n  if (row.expediente !== 'H&S' || row.fuente !== source ||\n      !['ventas_uf', 'bases'].includes(row.requisito) ||\n      typeof row.documento !== 'string') throw new Error('Pendiente inválido');\n}\nif (!rows.length) return [];\nconst body = rows.map(row => [\n  '### ' + row.requisito,\n  'Anterior: ' + JSON.stringify(row.anterior),\n  'Actual: ' + JSON.stringify(row.actual),\n  'Respaldo por revisar: ' + row.documento,\n  'Fuente: ' + row.fuente\n].join('\\n')).join('\\n\\n');\nreturn [{json:{title:'[Radar H&S] Crece Iquique · revisión de cambios',body}}];"
+      },
+      "id": "11a03122-0311-4330-a501-0889939c0013",
+      "name": "Preparar issue",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Ejecutar prueba": {
+      "main": [
+        [
+          {
+            "node": "Entrada del radar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Entrada del radar": {
+      "main": [
+        [
+          {
+            "node": "Preparar issue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}
