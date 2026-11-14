@@ -59,6 +59,29 @@
         720,
         0
       ]
+    },
+    {
+      "id": "bbf06ef7-4072-43cd-aa7f-821f25b5c36a",
+      "name": "Crear tarea en GitHub",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        0
+      ],
+      "disabled": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/repos/CarlosVergaraChile/coipo-orchestrator/issues",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({title: $json.title, body: $json.body}) }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
     }
   ],
   "connections": {
@@ -89,6 +112,17 @@
         [
           {
             "node": "Entrada del radar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar issue": {
+      "main": [
+        [
+          {
+            "node": "Crear tarea en GitHub",
             "type": "main",
             "index": 0
           }
