@@ -1,5 +1,7 @@
 name: Orquesta Gemini - prueba sintetica
 on:
+  issues:
+    types: [opened]
   workflow_dispatch:
     inputs:
       issue:
@@ -9,14 +11,15 @@ on:
 permissions:
   issues: write
 concurrency:
-  group: orquesta-gemini-${{ inputs.issue }}
+  group: orquesta-gemini-${{ inputs.issue || github.event.issue.number }}
   cancel-in-progress: false
 jobs:
   roundtrip:
+    if: github.event_name == 'workflow_dispatch' || (github.event.issue.title == '[QA Orquesta] Prueba desde Zapier' && github.event.issue.author_association == 'OWNER')
     runs-on: ubuntu-latest
     timeout-minutes: 3
     env:
-      ISSUE: ${{ inputs.issue }}
+      ISSUE: ${{ inputs.issue || github.event.issue.number }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Validar issue y comprobar respuesta previa
