@@ -13,15 +13,37 @@
       ]
     },
     {
+      "id": "f6577893-6f08-42b0-bdd6-b88dc5d1a921",
+      "name": "Leer Sercotec",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
       "parameters": {
-        "jsCode": "const pendientes = [];\nreturn [{json:{pendientes}}];"
+        "url": "https://www.sercotec.cl/convocatoria/crece-multisectorial-provincia-de-iquique-region-de-tarapaca-2026/",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "outputPropertyName": "html"
+            }
+          },
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $input.first().json.html;\nif (typeof html !== 'string') throw new Error('Falta la ficha de Sercotec');\nconst band = html.replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').replace(/\\s+/g,' ').match(/ventas netas demostrables anuales mayores o iguales a ([\\d.]+) UF e inferiores o iguales a ([\\d.]+) UF/i);\nconst links = [...new Set([...html.matchAll(/href=\"(https:\\/\\/www\\.sercotec\\.cl\\/[^\"]*Bases-de-Convocatoria_Crece-Multisectorial[^\"]*\\.pdf)\"/gi)].map(match => match[1]))];\nif (!band || links.length !== 1) throw new Error('Revisar ficha oficial: rango o bases no reconocidos');\nconst source = 'https://www.sercotec.cl/convocatoria/crece-multisectorial-provincia-de-iquique-region-de-tarapaca-2026/';\nconst previous = [200,25000];\nconst current = band.slice(1).map(n => Number(n.replaceAll('.','')));\nconst file = 'https://www.sercotec.cl/wp-content/uploads/2026/06/Bases-de-Convocatoria_Crece-Multisectorial-2026_Provincia-de-Iquique_Region-de-Tarapaca.pdf';\nconst pendientes = [];\nif (String(previous)!==String(current)) pendientes.push({expediente:'H&S',fuente:source,requisito:'ventas_uf',documento:'Carpeta tributaria',anterior:previous,actual:current});\nif (links[0]!==file) pendientes.push({expediente:'H&S',fuente:source,requisito:'bases',documento:'Bases y checklist',anterior:file,actual:links[0]});\nreturn [{json:{pendientes}}];"
       },
       "id": "11a03122-0311-4330-a501-0889939c0012",
       "name": "Entrada del radar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        240,
+        480,
         0
       ]
     },
@@ -34,7 +56,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        480,
+        720,
         0
       ]
     }
@@ -44,7 +66,7 @@
       "main": [
         [
           {
-            "node": "Entrada del radar",
+            "node": "Leer Sercotec",
             "type": "main",
             "index": 0
           }
@@ -56,6 +78,17 @@
         [
           {
             "node": "Preparar issue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Sercotec": {
+      "main": [
+        [
+          {
+            "node": "Entrada del radar",
             "type": "main",
             "index": 0
           }
