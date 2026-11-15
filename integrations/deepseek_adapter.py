@@ -6,6 +6,7 @@ Uso:
 La llamada real requiere autorización explícita y puede generar costos.
 """
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -53,7 +54,9 @@ def main(argv=None):
         data = build_request(args.prompt)
         if not args.send:
             print(json.dumps({"mode": "dry-run", "endpoint": ENDPOINT,
-                              "request": data}, ensure_ascii=False))
+                              "model": MODEL, "max_tokens": data["max_tokens"],
+                              "prompt_length": len(args.prompt),
+                              "prompt_sha256": hashlib.sha256(args.prompt.encode("utf-8")).hexdigest()}, ensure_ascii=False))
             return 0
         answer = send(data, os.getenv("DEEPSEEK_API_KEY", ""))
         print(json.dumps({"mode": "live", "answer": answer}, ensure_ascii=False))
