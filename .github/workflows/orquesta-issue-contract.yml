@@ -1,0 +1,18 @@
+name: Orquesta - validar contrato de issues
+on:
+  pull_request:
+    paths:
+      - "integrations/issue_task.py"
+      - "tests/test_issue_task.py"
+      - ".github/workflows/orquesta-issue-contract.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pruebas de issues sin APIs ni secretos
+        run: python -m unittest discover -s tests -p 'test_issue_task.py' -v
