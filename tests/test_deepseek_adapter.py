@@ -25,8 +25,12 @@ class AdapterTests(unittest.TestCase):
             self.assertEqual(adapter.main(["--prompt", "8 de 10"]), 0)
         result = json.loads(output.getvalue())
         self.assertEqual(result["mode"], "dry-run")
-        self.assertEqual(result["request"]["model"], "deepseek-chat")
-        self.assertEqual(result["request"]["max_tokens"], 256)
+        self.assertEqual(result["model"], "deepseek-chat")
+        self.assertEqual(result["max_tokens"], 256)
+        self.assertEqual(result["prompt_length"], 7)
+        self.assertEqual(len(result["prompt_sha256"]), 64)
+        self.assertNotIn("8 de 10", output.getvalue())
+        self.assertNotIn("messages", result)
 
     def test_invalid_prompts(self):
         for prompt in ("", "   ", "a" * 8001):
