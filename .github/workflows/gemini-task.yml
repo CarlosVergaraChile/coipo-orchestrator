@@ -1,0 +1,53 @@
+name: Gemini - encargos autorizados
+on:
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Issue publico con encargo no confidencial
+        required: true
+        type: number
+      tier:
+        description: Modelo y limite de salida
+        type: choice
+        options: [flash, pro]
+        default: flash
+permissions:
+  issues: write
+concurrency:
+  group: gemini-task-${{ inputs.issue }}
+  cancel-in-progress: false
+jobs:
+  consult:
+    if: github.actor == 'CarlosVergaraChile'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      TIER: ${{ inputs.tier }}
+      ISSUE: ${{ inputs.issue }}
+      GH_TOKEN: ${{ github.token }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Consultar Gemini y publicar respuesta
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$ISSUE" =~ ^[1-9][0-9]*$ ]]
+          api="repos/$GITHUB_REPOSITORY/issues/$ISSUE"
+          gh api "$api" > "$RUNNER_TEMP/task.json"
+          jq -e '.pull_request == null and .author_association == "OWNER" and (.title | startswith("[Gemini autorizado]")) and (.body | type == "string" and length > 0 and length <= 8000)' "$RUNNER_TEMP/task.json" >/dev/null
+          marker='<!-- gemini-task-v1 -->'
+          prior=$(gh api "$api/comments" --paginate --jq '.[] | select(.user.login == "github-actions[bot]") | .body | select(startswith("<!-- gemini-task-v1 -->"))')
+          [[ -z "$prior" ]] || exit 0
+          test -n "$GEMINI_API_KEY"
+          models=$(curl --fail --silent --show-error --max-time 25 'https://generativelanguage.googleapis.com/v1beta/models?pageSize=100' -H "x-goog-api-key: $GEMINI_API_KEY")
+          family=flash; limit=4096
+          if [[ "$TIER" == pro ]]; then family=pro; limit=16384; fi
+          model=$(jq -er --arg family "$family" '[.models[] | select(.supportedGenerationMethods | index("generateContent")) | .name | select(test("^models/gemini-[0-9.]+-" + $family + "$"))] | sort | last // error("No requested model")' <<< "$models")
+          jq --argjson limit "$limit" '{contents:[{parts:[{text:.body}]}],generationConfig:{maxOutputTokens:$limit}}' "$RUNNER_TEMP/task.json" > "$RUNNER_TEMP/request.json"
+          curl --fail --silent --show-error --max-time 90 "https://generativelanguage.googleapis.com/v1beta/${model}:generateContent" -H "x-goog-api-key: $GEMINI_API_KEY" -H 'Content-Type: application/json' --data-binary @"$RUNNER_TEMP/request.json" > "$RUNNER_TEMP/response.json"
+          {
+            printf '%s\n' "$marker"
+            printf 'Modelo: %s · [ejecución](%s/%s/actions/runs/%s)\n\n' "$model" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+            jq -er '[.candidates[0].content.parts[] | select(.thought != true) | .text // empty] | join("\n") | select(length > 0)' "$RUNNER_TEMP/response.json"
+          } > "$RUNNER_TEMP/result.md"
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/result.md"
