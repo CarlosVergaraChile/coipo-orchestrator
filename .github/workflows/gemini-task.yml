@@ -47,6 +47,7 @@ jobs:
           if [[ "$TIER" == pro ]]; then family=pro; limit=16384; fi
           model=$(jq -er --arg family "$family" '[.models[] | select(.supportedGenerationMethods | index("generateContent")) | .name | select(test("^models/gemini-[0-9.]+-" + $family + "$"))] | sort | last // error("No requested model")' <<< "$models")
           jq --argjson limit "$limit" '{contents:[{parts:[{text:.body}]}],generationConfig:{maxOutputTokens:$limit}}' "$RUNNER_TEMP/task.json" > "$RUNNER_TEMP/request.json"
+          if [[ "$TIER" == pro ]]; then model="models/gemini-3.1-pro-preview"; fi
           echo "Selected model: $model"
           curl --fail-with-body --silent --show-error --max-time 90 "https://generativelanguage.googleapis.com/v1beta/${model}:generateContent" -H "x-goog-api-key: $GEMINI_API_KEY" -H 'Content-Type: application/json' --data-binary @"$RUNNER_TEMP/request.json" > "$RUNNER_TEMP/response.json" || { jq -r '.error.message // "API request failed"' "$RUNNER_TEMP/response.json"; exit 1; }
           {
